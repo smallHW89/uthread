@@ -51,15 +51,15 @@ uint32_t  scheduler :: create_thread(UthreadEntry func, void *arg, uint32_t size
     int ret = save_context( p->_ctx._ctx ); //保存寄存器上下文
     if( 0 == ret )
     {
+        printf("create a new thread:%u\n", pid);
         replace_esp(p->_ctx._ctx, (void*)(stack_base) );//用自己的栈空间 
         return pid;
     }
     else
     {
-        uthread * pu = _cur_thread;
-        if(NULL != pu)
-            pu->run();
-        printf("uthread end\n");
+        printf("pid %u begin\n", _cur_thread->get_pid());
+        if(NULL != _cur_thread)
+            _cur_thread->run();
         //回收线程
         printf("pid %u end\n", _cur_thread->get_pid());
         _cur_thread->_state = UTHREAD_STATE_DIE;
@@ -91,22 +91,22 @@ void scheduler :: sleep(uint32_t ms)
     uint64_t  timestamp = get_current_ms() ;    
     uint64_t  ot =  timestamp += ms;
     uthread * pu = _cur_thread;
-    printf("id:%u scheule sleep :%llu, %llu, %u\n",pu->get_pid(), timestamp,ot,ms); 
+    //printf("id:%u scheule sleep :%llu, %llu, %u\n",pu->get_pid(), timestamp,ot,ms); 
 
 
     CTimerObj<uthread>   * obj =new CTimerObj<uthread> (pu, ot);
 
-    printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
+    //printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
     _sleep_mng.AddTimerObj( obj );
-    printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
+    //printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
 
     _cur_thread->_state =  UTHREAD_STATE_SLEEPING;
     yield();
     timestamp = get_current_ms() ;    
-    printf("id:%u scheule wake :%llu\n",_cur_thread->get_pid(), timestamp); 
-    printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
+    //printf("id:%u scheule wake :%llu\n",_cur_thread->get_pid(), timestamp); 
+    //printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
     _sleep_mng.DelTimeObj( obj );
-    printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
+    //printf("sleep_mgr count:%u  \n", _sleep_mng.GetObjCount()  );  
     _cur_thread->_state =  UTHREAD_STATE_RUNNING;
 }
 
@@ -122,11 +122,11 @@ void scheduler :: loop()
             uthread * pu = _runnable_list.front();
             _runnable_list.pop_front();
             _cur_thread =  pu;  
-            printf("save _primo_ctx\n");
+            //printf("save _primo_ctx\n");
             int ret = save_context(  _primo_ctx._ctx );
             if( 0 == ret)
             {
-                printf("resume pid:%u ctx\n", _cur_thread->get_pid());
+                //printf("resume pid:%u ctx\n", _cur_thread->get_pid());
                 restore_context(_cur_thread->_ctx._ctx, 1);     
             }
         }
@@ -135,19 +135,24 @@ void scheduler :: loop()
         uint64_t cur_t = get_current_ms();   
         std::vector< CTimerObj<uthread>* >  obj_list;
         int ii = _sleep_mng.GetTimeOutObj( obj_list , cur_t );
-        //printf("sleep_mgr count:%u, ot%u\n", _sleep_mng.GetObjCount(), ii );  
         for(int i=0; i< obj_list.size(); i ++ )
         {
             uthread *pu =  obj_list[i]->GetObj(); 
-            //printf("cur_t %llu timeout id:%u\n", cur_t,pu->get_pid() );
             add_runnable_list(pu);
         }
         obj_list.clear();
 
         //处理网络fd, fifo事件
-        uint64_t min_ot = _timer_mgr.GetMinTimeOut();
+        uint64_t min_ot1 = _sleep_mng.GetMinTimeOut();
+        uint64_t min_ot2 = _timer_mgr.GetMinTimeOut();
+        uint64_t min_ot =0 ;
+        if(min_ot1 == 0 ) min_ot = min_ot2;
+        else  if(min_ot2 == 0) min_ot = min_ot1;
+        else  min_ot = (min_ot1 < min_ot2)? min_ot1:min_ot2;
+
         uint64_t tt = 0;
-        if( min_ot >= cur_t) tt = min_ot - cur_t;
+        if( min_ot == 0 )         tt = 10; 
+        else if( min_ot >= cur_t) tt = min_ot - cur_t;
         std::vector<uthread* > t_list;
         _io_mgr.WaitEvent(tt, t_list  );
         for(int i=0; i< t_list.size(); i++ )

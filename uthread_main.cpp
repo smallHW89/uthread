@@ -18,7 +18,6 @@
  * 开发者实现
  */
 extern void  uthread_main( void * );
-extern void  uthread_mainB( void * );
 
 scheduler     g_sched;
 

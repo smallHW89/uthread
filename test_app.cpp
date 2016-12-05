@@ -19,9 +19,9 @@ void test_thread(void *)
 {
     printf("test thread begin \n");
 
-    for(int i=0; i<100; i++ )
+    for(int i=0; i<10; i++ )
     {
-        go_sleep(2000);
+        go_sleep(5000);
         printf("test func %u \n", i); 
     }
 
@@ -42,6 +42,11 @@ void uthread_mainB(void *)
 
     return ;
 }
+
+
+/*
+ * 开发者实现这个
+ */
 void uthread_main(void *)
 {
     printf("uthread main begin %llu\n",  get_current_ms());
@@ -51,6 +56,7 @@ void uthread_main(void *)
     for(int i=0; i< 10; i++)
     {
         uint64_t curt = get_current_ms();
+        go_thread(uthread_mainB, NULL);
         go_sleep(2000); 
         printf("main sleep  wake i %u, %llu\n", i, get_current_ms());
     }

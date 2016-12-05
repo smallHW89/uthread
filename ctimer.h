@@ -100,6 +100,8 @@ class CTimerMng
             {
                 return _timer_list.begin()->first;
             }
+            else
+                return 0;
         }
 
         uint64_t GetObjCount()
