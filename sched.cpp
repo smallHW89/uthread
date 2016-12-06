@@ -185,6 +185,41 @@ void scheduler :: loop()
     }
 }
 
+ssize_t scheduler :: udp_send(int fd, char  *buf, size_t len, uint32_t otms, const struct sockaddr * dest_addr, socklen_t addrlen)
+{
+    uthread *pu = _cur_thread;
+    int events =  EPOLLOUT;
+    _io_mgr.PollCtlAdd(fd, events, pu );
+    uint64_t  timestamp = get_current_ms() ; 
+    timestamp += otms;
+    CTimerObj<uthread>   obj(pu, timestamp);
+    if(otms)
+    {
+        _timer_mgr.AddTimerObj( &obj );
+    }
+    pu->_state = UTHREAD_STATE_PENDING ;
+    yield(); //切走，fd可读写、或者超时后唤醒
+    if(otms)
+    {
+        _timer_mgr.DelTimeObj( &obj );
+    }
+    pu->_state = UTHREAD_STATE_RUNNING;
+
+    //判断fd 的事件
+    int revents = _io_mgr.GetFdEvents(fd);
+    _io_mgr.SetFdEvents(fd, revents&~EPOLLOUT);
+    _io_mgr.PollCtlDel(fd, EPOLLOUT, pu);
+
+    if ( otms &&  (revents & EPOLLOUT == 0) )
+    {
+        errno = ETIME;
+        return -1;
+    }
+
+    ssize_t rn = ::sendto(fd, buf, len, 0 , dest_addr, addrlen); 
+    return  rn;
+}
+
 ssize_t scheduler :: udp_send(int fd, char  *buf, size_t len, uint32_t otms)
 {
     uthread *pu = _cur_thread;
@@ -201,7 +236,7 @@ ssize_t scheduler :: udp_send(int fd, char  *buf, size_t len, uint32_t otms)
     yield(); //切走，fd可读写、或者超时后唤醒
     if(otms)
     {
-        _sleep_mng.DelTimeObj( &obj );
+        _timer_mgr.DelTimeObj( &obj );
     }
     pu->_state = UTHREAD_STATE_RUNNING;
 
@@ -220,7 +255,7 @@ ssize_t scheduler :: udp_send(int fd, char  *buf, size_t len, uint32_t otms)
     return  rn;
 }
 
-ssize_t scheduler::udp_recv(int fd, char *buf, size_t len, uint32_t otms)
+ssize_t scheduler::udp_recv(int fd, char *buf, size_t len, uint32_t otms, struct sockaddr * src_addr, socklen_t * addrlen)
 {
     uthread *pu = _cur_thread;
     int events =  EPOLLIN;
@@ -236,7 +271,7 @@ ssize_t scheduler::udp_recv(int fd, char *buf, size_t len, uint32_t otms)
     yield(); //切走，fd可读、或者超时后唤醒
     if(otms)
     {
-        _sleep_mng.DelTimeObj( &obj );
+        _timer_mgr.DelTimeObj( &obj );
     }
     pu->_state = UTHREAD_STATE_RUNNING;
 
@@ -251,7 +286,7 @@ ssize_t scheduler::udp_recv(int fd, char *buf, size_t len, uint32_t otms)
         return -1;
     }
 
-    ssize_t rn = ::recv(fd, buf, len, 0 ); 
+    ssize_t rn = ::recvfrom(fd, buf, len, 0 , src_addr, addrlen); 
     return  rn;
 }
 

@@ -28,10 +28,9 @@ bool PollMgr :: InitPoll(int  max_fd_num)
     _ep_fd = epoll_create(_max_fd);
     if( _ep_fd < 0 )
         return false;
-    else
-        return true;
 
     _ev_list = new  struct epoll_event[_max_fd] ;
+    return true;
 }
 
 int PollMgr::GetFdEvents(int fd)

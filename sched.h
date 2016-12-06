@@ -10,7 +10,8 @@
 #ifndef _SCHED_H
 #define _SCHED_H
 
-
+#include<sys/types.h>
+#include<sys/socket.h>
 
 #include "uthread.h"
 
@@ -42,8 +43,9 @@ public:
      * udp: read, send
      */
 
-    ssize_t udp_send(int fd, char *buf, size_t len, uint32_t  otms);
-    ssize_t udp_recv(int fd, char *buf, size_t len, uint32_t  otms);
+    ssize_t udp_send(int fd, char *buf, size_t len, uint32_t  otms) ;
+    ssize_t udp_send(int fd, char *buf, size_t len, uint32_t  otms, const struct  sockaddr * dest_addr , socklen_t addrlen);
+    ssize_t udp_recv(int fd, char *buf, size_t len, uint32_t  otms, struct sockaddr * src_addr, socklen_t * addrlen);
     
 private:
     uint32_t                        _nextpid; 
