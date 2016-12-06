@@ -27,9 +27,17 @@ S_OJBS         = $(patsubst  %S,%o , $(S_SOURCE))
 
 objects = $(C_OBJS)  $(CPP_OBJS)  $(S_OJBS)
 
-test_app: $(objects)
-	@echo $(objects)
-	$(CC) -o $@ $^
+LIB_TARGET =  libuthread.a
+
+all: $(LIB_TARGET)
+$(LIB_TARGET):$(S_OJBS) $(C_OBJS) $(CPP_OBJS)
+	ar rcs $@ $^
+
+
+
+
+
+
 
 clean:
 	rm *.o
